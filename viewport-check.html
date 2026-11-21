@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8"><title>viewport check (temporary)</title>
-<style>body{margin:0;background:#ddd;font:12px sans-serif;display:flex;gap:14px;align-items:flex-start;padding:10px}
-figure{margin:0}figcaption{font-weight:700;padding:4px}
-iframe{border:1px solid #888;display:block;background:#fff}</style></head>
+<style>html,body{margin:0;background:#e9e4dc}iframe{border:0;display:block;margin:0 auto;background:#fff}</style></head>
 <body>
-<figure><figcaption>iPad 세로 768</figcaption><iframe src="./index.html" width="768" height="1000"></iframe></figure>
-<figure><figcaption>iPad 가로 1024</figcaption><iframe src="./index.html" width="1024" height="760"></iframe></figure>
-<figure><figcaption>iPhone 390</figcaption><iframe src="./index.html" width="390" height="820"></iframe></figure>
+<script>
+var q = new URLSearchParams(location.search);
+var w = parseInt(q.get('w') || '1024', 10);
+var h = parseInt(q.get('h') || '1000', 10);
+var f = document.createElement('iframe');
+f.width = w; f.height = h; f.src = './index.html';
+document.body.appendChild(f);
+</script>
 </body></html>
