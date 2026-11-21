@@ -667,11 +667,15 @@
           if (Array.isArray(st.routines) && st.routines.length > 0) {
             s.routines = st.routines.map(function(r, i){
               var d = DEFAULT_SETTINGS.routines[i] || DEFAULT_SETTINGS.routines[DEFAULT_SETTINGS.routines.length - 1];
+              var pp = (r && r.period) || d.period || "evening";
+              if (pp !== "morning" && pp !== "evening" && pp !== "etc") pp = d.period || "evening";
               return {
                 emoji: (r && r.emoji) || d.emoji,
                 name: (r && r.name) || d.name,
                 start: (r && r.start) || d.start,
-                end: (r && r.end) || d.end
+                end: (r && r.end) || d.end,
+                period: pp,
+                enabled: !(r && r.enabled === false)
               };
             });
           } else { s.routines = clone(DEFAULT_SETTINGS.routines); }
