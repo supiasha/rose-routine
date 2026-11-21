@@ -592,12 +592,16 @@
   var STORE = "rose-evening-routine.v2";
   var SKEY = "rose-evening-routine.stickers.v1";
   var CKEY = "rose-evening-routine.coins.v1";
+  var CDKEY = "rose-evening-routine.coins.date.v1";
   var DKEY = "rose-evening-routine.stamps.v1";
+  var SEEDKEY = "rose-evening-routine.stamps.seeded.v1";
+  var SEED_STAMP = "2026-11-20";
+  var DEFAULT_STAMPS = { "2026-11-20": true };
 
   var S = null;
   var stickerList = [];
   var coins = 0;
-  var stampMap = {};
+  var stampMap = clone(DEFAULT_STAMPS);
   var calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
   var previewIdx = -1;
   var activePeriod = (new Date().getHours() < 15) ? "morning" : "evening";
@@ -692,12 +696,16 @@
   }
   function resetIfNewDay(){
     var today = ymd(new Date());
-    if (S.doneDate !== today) {
-      S.doneDate = today;
-      S.done = normalizeDone(null);
-      if ($("fCoins")) { var nc = parseInt($("fCoins").value, 10); if (!isNaN(nc) && nc >= 0) { coins = nc; saveCoins(); } }
+    if (S.doneDate === today) return false;
+    S.doneDate = today;
+    S.done = normalizeDone(null);
     saveState();
-    }
+    coins = 0;
+    storeSet(CKEY, "0");
+    storeSet(CDKEY, today);
+    if ($("fCoins")) $("fCoins").value = "0";
+    if ($("coinVal")) $("coinVal").textContent = coins + "개";
+    return true;
   }
   function getCookie(name){
     try {
@@ -774,10 +782,20 @@
     syncHash();
   }
   function loadCoins(){
+    var today = ymd(new Date());
     try {
       var raw = storeGet(CKEY);
+      var day = storeGet(CDKEY);
       var n = parseInt(raw, 10);
-      if (!isNaN(n) && n >= 0) return n;
+      if (!isNaN(n) && n >= 0) {
+        if (day && day !== today) {
+          storeSet(CKEY, "0");
+          storeSet(CDKEY, today);
+          return 0;
+        }
+        if (!day) storeSet(CDKEY, today);
+        return n;
+      }
       var hd = getHashData();
       if (hd && typeof hd.c === "number" && hd.c >= 0) return hd.c;
     } catch (e) {}
@@ -785,6 +803,7 @@
   }
   function saveCoins(){
     storeSet(CKEY, String(coins));
+    storeSet(CDKEY, ymd(new Date()));
     syncHash();
   }
   function loadStamps(){
@@ -797,7 +816,15 @@
       var hd = getHashData();
       if (hd && hd.d && typeof hd.d === "object" && !Array.isArray(hd.d)) return hd.d;
     } catch (e) {}
-    return {};
+    return clone(DEFAULT_STAMPS);
+  }
+  function seedStamps(){
+    try {
+      if (storeGet(SEEDKEY) === "1") return;
+      if (!stampMap[SEED_STAMP]) stampMap[SEED_STAMP] = true;
+      saveStamps();
+      storeSet(SEEDKEY, "1");
+    } catch (e) {}
   }
   function saveStamps(){
     storeSet(DKEY, JSON.stringify(stampMap));
@@ -1549,6 +1576,7 @@
   stickerList = loadStickers();
     coins = loadCoins();
     stampMap = loadStamps();
+    seedStamps();
   cheerIdx = Math.floor(Math.random() * CHEERS.length);
   buildCards();
   renderStatic();
