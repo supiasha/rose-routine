@@ -880,15 +880,16 @@
       if (raw) {
         var o = JSON.parse(raw);
         if (o && typeof o === "object" && !Array.isArray(o)) {
-          var cnt = 0;
-          for (var ck in o) { if (Object.prototype.hasOwnProperty.call(o, ck)) cnt++; }
+          var cnt = 0, tmp = {};
+          for (var ck in o) {
+            if (Object.prototype.hasOwnProperty.call(o, ck)) { cnt++; if (o[ck]) tmp[ck] = true; }
+          }
           /* 빈 객체는 기록이 없는 것으로 보고 해시·기본값 쪽을 다시 찾는다 */
-          if (cnt > 0) out = {};
+          if (cnt > 0) out = tmp;
         }
       }
     } catch (e) {}
     if (out) {
-      for (var k in out) { if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = !!out[k]; }
       /* 저장소에 있던 도장은 그대로 두고, 해시(#r=)에만 남아 있는 날짜를 빠진 만큼만 더한다 */
       var hd = getHashData();
       if (hd && hd.d && typeof hd.d === "object" && !Array.isArray(hd.d)) {
