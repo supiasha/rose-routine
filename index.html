@@ -632,6 +632,7 @@
   var CKEY = "rose-evening-routine.coins.v1";
   var CDKEY = "rose-evening-routine.coins.date.v1";
   var DKEY = "rose-evening-routine.stamps.v1";
+  var DTSKEY = "rose-evening-routine.stamps.at.v1";
   var SEEDKEY = "rose-evening-routine.stamps.seeded.v1";
   var SEED_STAMPS = ["2026-11-20", "2026-11-21", "2026-11-22"];
   var DEFAULT_STAMPS = { "2026-11-20": true, "2026-11-21": true, "2026-11-22": true };
@@ -875,6 +876,8 @@
   }
   function loadStamps(){
     var out = null;
+    stampStoreAt = parseInt(storeGet(DTSKEY), 10);
+    if (isNaN(stampStoreAt) || stampStoreAt < 0) stampStoreAt = 0;
     try {
       var raw = storeGet(DKEY);
       if (raw) {
@@ -910,19 +913,24 @@
       for (var i = 0; i < SEED_STAMPS.length; i++) {
         if (!stampMap[SEED_STAMPS[i]]) stampMap[SEED_STAMPS[i]] = true;
       }
-      saveStamps();
+      /* 시드는 사용자가 찍은 기록이 아니므로 시간·백업은 건드리지 않는다(백업 복구 판단이 흐려지지 않게) */
+      storeSet(DKEY, JSON.stringify(stampMap));
+      syncHash();
       storeSet(SEEDKEY, SEED_VERSION);
     } catch (e) {}
   }
   function saveStamps(){
+    var at = Date.now();
     storeSet(DKEY, JSON.stringify(stampMap));
+    storeSet(DTSKEY, String(at));
     syncHash();
-    idbBackupStamps();
+    idbBackupStamps(at);
   }
 
   /* ---------- IndexedDB 보조 저장 (비동기, 실패해도 동기 흐름·화면은 그대로) ---------- */
   var IDB_NAME = "rose-evening-routine", IDB_STORE = "kv", IDB_REC = "stamps.v1";
   var idbCache = null, idbNo = false;
+  var stampStoreAt = 0; /* 이번에 불러온 저장소에 마지막으로 도장이 기록된 시각(ms) */
   function idbOpen(cb){
     if (idbNo) return cb(null);
     if (idbCache) return cb(idbCache);
@@ -937,14 +945,15 @@
       req.onblocked = function(){ cb(null); };
     } catch (e) { idbNo = true; cb(null); }
   }
-  function idbBackupStamps(){
+  function idbBackupStamps(at){
     var snap = clone(stampMap);
+    var rec = { d: snap, t: at || Date.now() };
     try {
       idbOpen(function(db){
         if (!db) return;
         try {
           var tx = db.transaction(IDB_STORE, "readwrite");
-          tx.objectStore(IDB_STORE).put(snap, IDB_REC);
+          tx.objectStore(IDB_STORE).put(rec, IDB_REC);
         } catch (e) {}
       });
     } catch (e) {}
@@ -958,16 +967,40 @@
           var rq = tx.objectStore(IDB_STORE).get(IDB_REC);
           rq.onsuccess = function(){
             var v = rq.result;
-            if (!v || typeof v !== "object" || Array.isArray(v)) { idbBackupStamps(); return; }
-            var changed = false;
-            for (var k in v) {
-              if (Object.prototype.hasOwnProperty.call(v, k) && v[k] && !stampMap[k]) { stampMap[k] = true; changed = true; }
+            if (!v || typeof v !== "object" || Array.isArray(v) || !v.d || typeof v.d !== "object") { idbBackupStamps(); return; }
+            var back = {};
+            for (var k in v.d) { if (Object.prototype.hasOwnProperty.call(v.d, k) && v.d[k]) back[k] = true; }
+            var idbAt = (typeof v.t === "number" && v.t > 0) ? v.t : 0;
+            var syncAt = stampStoreAt;
+            var curCount = 0, backCount = 0, same = true, k2;
+            for (k2 in stampMap) { if (Object.prototype.hasOwnProperty.call(stampMap, k2) && stampMap[k2]) curCount++; }
+            for (k2 in back) { backCount++; if (!stampMap[k2]) same = false; }
+            if (curCount !== backCount) same = false;
+            /* 저장소가 백업보다 오래됐으면(저장이 덜 된 상태·기록 소실) 백업 내용으로 되살린다 */
+            if (idbAt > syncAt) {
+              if (!same) {
+                stampMap = back;
+                var hd = getHashData();
+                if (hd && hd.d && typeof hd.d === "object" && !Array.isArray(hd.d)) {
+                  for (var hk in hd.d) {
+                    if (Object.prototype.hasOwnProperty.call(hd.d, hk) && hd.d[hk] && !stampMap[hk]) stampMap[hk] = true;
+                  }
+                }
+                renderCalendar();
+                toast("달력 도장 기록을 다시 불러왔어요 💮");
+                saveStamps();
+              }
+              return;
             }
-            if (changed) {
-              renderCalendar();
-              toast("달력 도장 기록을 다시 불러왔어요 💮");
-              saveStamps();
+            /* 저장소가 최신이면 그대로 두고 백업만 갱신한다(지운 도장이 되살아나지 않게) */
+            if (syncAt === 0) {
+              var changed = false;
+              for (k2 in back) { if (!stampMap[k2]) { stampMap[k2] = true; changed = true; } }
+              if (changed) { renderCalendar(); saveStamps(); }
+              else storeSet(DTSKEY, String(Date.now()));
+              return;
             }
+            idbBackupStamps(syncAt);
           };
         } catch (e) {}
       });
