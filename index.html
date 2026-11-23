@@ -226,13 +226,13 @@
     color:#D84333;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
     font-size:8px;font-weight:900;line-height:1.05;transform:rotate(-11deg);box-shadow:0 2px 6px rgba(229,90,75,.18);
     letter-spacing:-.35px;text-align:center;margin:1px auto 0;padding:0}
-  .cal-stamp b{font-size:9px;line-height:1}
+  .cal-stamp b{font-size:10px;line-height:1}
   @media (max-width:430px){
     .cal-grid{gap:4px}
     .cal-cell{padding:3px 2px 2px;border-radius:10px}
     .cal-num{font-size:10px;height:10px}
-    .cal-stamp{border-width:1.5px;font-size:6.4px;letter-spacing:-.4px}
-    .cal-stamp b{font-size:7.4px}
+    .cal-stamp{border-width:1.5px;font-size:6.8px;letter-spacing:-.35px}
+    .cal-stamp b{font-size:8.6px}
   }
 
   /* ---------- modal ---------- */
@@ -1406,7 +1406,7 @@
       var stamped = !!stampMap[key];
       if (stamped) monthStamps++;
       cell.innerHTML = '<span class="cal-num">' + d + '</span>' +
-        (stamped ? '<div class="cal-stamp"><b>💮</b>참<br>잘했어요</div>' : '');
+        (stamped ? '<div class="cal-stamp"><span><b>💮</b>참<br>잘했어요</span></div>' : '');
       cell.setAttribute("role", "button");
       cell.setAttribute("tabindex", "0");
       cell.setAttribute("aria-pressed", stamped ? "true" : "false");
