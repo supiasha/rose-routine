@@ -212,18 +212,28 @@
   .cal-wd span:first-child{color:#E07A70}
   .cal-wd span:last-child{color:#6C9BD2}
   .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-  .cal-cell{aspect-ratio:1/1;border-radius:14px;background:#FFFCF7;border:1px solid #F2E3D3;padding:5px;
-    display:flex;flex-direction:column;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
-  .cal-cell.empty{background:transparent;border-color:transparent}
+  .cal-cell{aspect-ratio:1/1;border-radius:14px;background:#FFFCF7;border:1px solid #F2E3D3;padding:4px 3px 3px;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-start;position:relative;overflow:hidden;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s ease,box-shadow .12s ease}
+  .cal-cell:not(.empty):active{transform:scale(.95)}
+  .cal-cell:not(.empty):focus-visible{outline:2px solid #F3A261;outline-offset:1px}
+  .cal-cell.empty{background:transparent;border-color:transparent;cursor:default}
   .cal-cell.today{border:2px solid #F3A261;background:#FFF7EB}
-  .cal-num{font-size:11.5px;font-weight:800;color:#6C5B4B;align-self:flex-start;line-height:1}
+  .cal-num{font-size:11px;font-weight:800;color:#6C5B4B;align-self:flex-start;line-height:1;height:11px;flex:0 0 auto}
   .cal-cell.sun .cal-num{color:#D97268}
   .cal-cell.sat .cal-num{color:#5E8EC7}
-  .cal-stamp{width:84%;aspect-ratio:1/1;border-radius:50%;border:2px dashed #E55A4B;background:rgba(255,232,228,.92);
-    color:#D84333;display:flex;flex-direction:column;align-items:center;justify-content:center;
-    font-size:8.5px;font-weight:900;line-height:1.1;transform:rotate(-11deg);box-shadow:0 2px 6px rgba(229,90,75,.18);
-    letter-spacing:-.4px;text-align:center;margin:auto}
-  .cal-stamp b{font-size:12px;line-height:1}
+  .cal-stamp{width:100%;flex:1 1 auto;min-height:0;max-width:40px;border-radius:50%;border:2px dashed #E55A4B;background:rgba(255,232,228,.92);
+    color:#D84333;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+    font-size:8px;font-weight:900;line-height:1.05;transform:rotate(-11deg);box-shadow:0 2px 6px rgba(229,90,75,.18);
+    letter-spacing:-.35px;text-align:center;margin:1px auto 0;padding:0}
+  .cal-stamp b{font-size:9px;line-height:1}
+  @media (max-width:430px){
+    .cal-grid{gap:4px}
+    .cal-cell{padding:3px 2px 2px;border-radius:10px}
+    .cal-num{font-size:10px;height:10px}
+    .cal-stamp{border-width:1.5px;font-size:6.4px;letter-spacing:-.4px}
+    .cal-stamp b{font-size:7.4px}
+  }
 
   /* ---------- modal ---------- */
   .modal-back{position:fixed;inset:0;background:rgba(58,42,30,.34);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
@@ -501,7 +511,7 @@
       </div>
       <div class="cal-wd"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
       <div class="cal-grid" id="calGrid"></div>
-      <div style="font-size:11.5px;color:#B3A292;line-height:1.6;margin-top:12px">하루에 당근(🥕)을 <b>5개 이상</b> 모으면 '참 잘했어요' 도장이 쾅 찍혀요 💮<br>루틴 하나를 끝낼 때마다 당근 1개 — 아침·저녁·리터러시·etc 어느 탭이든 좋아요!</div>
+      <div style="font-size:11.5px;color:#B3A292;line-height:1.6;margin-top:12px">하루에 당근(🥕)을 <b>5개 이상</b> 모으면 '참 잘했어요' 도장이 쾅 찍혀요 💮<br>루틴 하나를 끝낼 때마다 당근 1개 — 아침·저녁·리터러시·etc 어느 탭이든 좋아요!<br><b style="color:#C08A5A">날짜를 누르면 직접 도장을 찍거나 뺄 수도 있어요</b> 👆</div>
     </div>
   </div>
 </div>
@@ -623,8 +633,9 @@
   var CDKEY = "rose-evening-routine.coins.date.v1";
   var DKEY = "rose-evening-routine.stamps.v1";
   var SEEDKEY = "rose-evening-routine.stamps.seeded.v1";
-  var SEED_STAMP = "2026-11-20";
-  var DEFAULT_STAMPS = { "2026-11-20": true };
+  var SEED_STAMPS = ["2026-11-20", "2026-11-21", "2026-11-22"];
+  var DEFAULT_STAMPS = { "2026-11-20": true, "2026-11-21": true, "2026-11-22": true };
+  var SEED_VERSION = "2";
   var STAMP_GOAL = 5; /* 하루 당근 5개 이상 모으면 오늘 날짜에 '참 잘했어요' 도장 */
 
   var S = null;
@@ -863,28 +874,104 @@
     syncHash();
   }
   function loadStamps(){
+    var out = null;
     try {
       var raw = storeGet(DKEY);
       if (raw) {
         var o = JSON.parse(raw);
-        if (o && typeof o === "object" && !Array.isArray(o)) return o;
+        if (o && typeof o === "object" && !Array.isArray(o)) out = {};
       }
+    } catch (e) {}
+    if (out) {
+      for (var k in out) { if (Object.prototype.hasOwnProperty.call(out, k)) out[k] = !!out[k]; }
+      /* 저장소에 있던 도장은 그대로 두고, 해시(#r=)에만 남아 있는 날짜를 빠진 만큼만 더한다 */
       var hd = getHashData();
-      if (hd && hd.d && typeof hd.d === "object" && !Array.isArray(hd.d)) return hd.d;
+      if (hd && hd.d && typeof hd.d === "object" && !Array.isArray(hd.d)) {
+        for (var hk in hd.d) {
+          if (Object.prototype.hasOwnProperty.call(hd.d, hk) && hd.d[hk] && !out[hk]) out[hk] = true;
+        }
+      }
+      return out;
+    }
+    try {
+      var hd2 = getHashData();
+      if (hd2 && hd2.d && typeof hd2.d === "object" && !Array.isArray(hd2.d)) {
+        var m = {};
+        for (var k2 in hd2.d) { if (Object.prototype.hasOwnProperty.call(hd2.d, k2) && hd2.d[k2]) m[k2] = true; }
+        return m;
+      }
     } catch (e) {}
     return clone(DEFAULT_STAMPS);
   }
   function seedStamps(){
     try {
-      if (storeGet(SEEDKEY) === "1") return;
-      if (!stampMap[SEED_STAMP]) stampMap[SEED_STAMP] = true;
+      /* v1으로 이미 한 번 시드된 브라우저도 20·21·22일만 빠진 만큼 채운다(다른 날짜는 그대로) */
+      if (storeGet(SEEDKEY) === SEED_VERSION) return;
+      for (var i = 0; i < SEED_STAMPS.length; i++) {
+        if (!stampMap[SEED_STAMPS[i]]) stampMap[SEED_STAMPS[i]] = true;
+      }
       saveStamps();
-      storeSet(SEEDKEY, "1");
+      storeSet(SEEDKEY, SEED_VERSION);
     } catch (e) {}
   }
   function saveStamps(){
     storeSet(DKEY, JSON.stringify(stampMap));
     syncHash();
+    idbBackupStamps();
+  }
+
+  /* ---------- IndexedDB 보조 저장 (비동기, 실패해도 동기 흐름·화면은 그대로) ---------- */
+  var IDB_NAME = "rose-evening-routine", IDB_STORE = "kv", IDB_REC = "stamps.v1";
+  var idbCache = null, idbNo = false;
+  function idbOpen(cb){
+    if (idbNo) return cb(null);
+    if (idbCache) return cb(idbCache);
+    try {
+      if (!window.indexedDB) { idbNo = true; return cb(null); }
+      var req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = function(){
+        try { if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE); } catch (e) {}
+      };
+      req.onsuccess = function(){ idbCache = req.result; cb(idbCache); };
+      req.onerror = function(){ idbNo = true; cb(null); };
+      req.onblocked = function(){ cb(null); };
+    } catch (e) { idbNo = true; cb(null); }
+  }
+  function idbBackupStamps(){
+    var snap = clone(stampMap);
+    try {
+      idbOpen(function(db){
+        if (!db) return;
+        try {
+          var tx = db.transaction(IDB_STORE, "readwrite");
+          tx.objectStore(IDB_STORE).put(snap, IDB_REC);
+        } catch (e) {}
+      });
+    } catch (e) {}
+  }
+  function idbRestoreStamps(){
+    try {
+      idbOpen(function(db){
+        if (!db) return;
+        try {
+          var tx = db.transaction(IDB_STORE, "readonly");
+          var rq = tx.objectStore(IDB_STORE).get(IDB_REC);
+          rq.onsuccess = function(){
+            var v = rq.result;
+            if (!v || typeof v !== "object" || Array.isArray(v)) { idbBackupStamps(); return; }
+            var changed = false;
+            for (var k in v) {
+              if (Object.prototype.hasOwnProperty.call(v, k) && v[k] && !stampMap[k]) { stampMap[k] = true; changed = true; }
+            }
+            if (changed) {
+              renderCalendar();
+              toast("달력 도장 기록을 다시 불러왔어요 💮");
+              saveStamps();
+            }
+          };
+        } catch (e) {}
+      });
+    } catch (e) {}
   }
 
   /* ============ audio ============ */
@@ -1278,6 +1365,25 @@
     $("cheerText").textContent = CHEERS[cheerIdx % CHEERS.length];
   }
 
+  function toggleStamp(key){
+    if (!key) return;
+    var p = key.split("-");
+    var label = parseInt(p[1], 10) + "월 " + parseInt(p[2], 10) + "일";
+    if (stampMap[key]) {
+      delete stampMap[key];
+      saveStamps();
+      renderCalendar();
+      chime("uncheck");
+      toast(label + " 도장을 뺐어요");
+    } else {
+      stampMap[key] = true;
+      saveStamps();
+      renderCalendar();
+      chime("check");
+      toast(label + " 도장 쾅! 💮");
+    }
+  }
+
   function renderCalendar(){
     $("calMonthText").textContent = calYear + "년 " + (calMonth + 1) + "월";
     var grid = $("calGrid");
@@ -1301,6 +1407,16 @@
       if (stamped) monthStamps++;
       cell.innerHTML = '<span class="cal-num">' + d + '</span>' +
         (stamped ? '<div class="cal-stamp"><b>💮</b>참<br>잘했어요</div>' : '');
+      cell.setAttribute("role", "button");
+      cell.setAttribute("tabindex", "0");
+      cell.setAttribute("aria-pressed", stamped ? "true" : "false");
+      cell.setAttribute("aria-label", (calMonth + 1) + "월 " + d + "일 " + (stamped ? "도장 있음, 누르면 빼요" : "도장 없음, 누르면 찍어요"));
+      (function(k){
+        cell.addEventListener("click", function(){ toggleStamp(k); });
+        cell.addEventListener("keydown", function(ev){
+          if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar") { ev.preventDefault(); toggleStamp(k); }
+        });
+      })(key);
       grid.appendChild(cell);
     }
     $("calCountText").textContent = "이번 달 " + monthStamps + "개 💮";
@@ -1658,6 +1774,7 @@
     coins = loadCoins();
     stampMap = loadStamps();
     seedStamps();
+    idbRestoreStamps();
   cheerIdx = Math.floor(Math.random() * CHEERS.length);
   (function bootTab(){
     var bd = new Date();
