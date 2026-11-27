@@ -38,6 +38,14 @@
   };
   var stamps = {};
   ["2026-11-20","2026-11-21","2026-11-22","2026-11-23","2026-11-24","2026-11-26"].forEach(function(k){ stamps[k] = true; });
+  if (location.search.indexOf("clear") >= 0) {
+    ["rose-evening-routine.v2","rose-evening-routine.coins.v1","rose-evening-routine.coins.date.v1",
+     "rose-evening-routine.stamps.v1","rose-evening-routine.stamps.seeded.v1","rose-evening-routine.stickers.v1"].forEach(function(k){
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    document.getElementById("log").textContent = "테스트 저장값을 지웠어요. 앱을 열면 기본 상태로 시작합니다.";
+    return;
+  }
   try {
     localStorage.setItem("rose-evening-routine.v2", JSON.stringify(state));
     localStorage.setItem("rose-evening-routine.coins.v1", "4");
