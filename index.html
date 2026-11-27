@@ -1345,6 +1345,7 @@
     var r = S.settings.routines[i];
     if (!r || r.enabled === false) return;
     if (periodOf(r) === "mission") return;
+    if (periodOf(r) === "etc") return;   /* Play Time 은 자유 놀이 시간이라 종료 알람을 울리지 않는다 */
     if (!r.end) return;
     var rem = t2m(r.end) - mins;
     if (!isFinite(rem)) return;
@@ -1367,6 +1368,7 @@
     S.settings.routines.forEach(function(r, i){
       if (!r || r.enabled === false) return;
       if (periodOf(r) === "mission") return;
+      if (periodOf(r) === "etc") return;
       if (!r.end) return;
       if (S.done[i]) return;
       var rem = t2m(r.end) - mins;
